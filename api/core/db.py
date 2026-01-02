@@ -1,22 +1,32 @@
-from clickhouse_driver import Client
+from aiochclient import ChClient
 from datetime import datetime
 
-from src.schemas import Metric
+from src.schemas import MetricBatch
 
 
-class MetricsRepository:
-    @staticmethod
-    def add_metric(client: Client, metric: Metric):
+class Base:
+    def __init__(self, ch: ChClient):
+        self.ch = ch
+
+
+class MetricsRepository(Base):
+    async def add_metric(self, data: MetricBatch):
         now = datetime.utcnow()
-        client.execute(
-            "INSERT INTO metrics_raw VALUES",
-            [(
-                now.date(),
-                now,
-                metric.host,
-                metric.vm,
-                metric.metric,
-                metric.value,
-                metric.tags
-            )]
+
+        rows = [
+            {
+                "date": now.date().isoformat(),
+                "ts": now.strftime("%Y-%m-%d %H:%M:%S"),
+                "host": m.host,
+                "vm": m.vm,
+                "metric": m.metric,
+                "value": m.value,
+                "tags": m.tags
+            }
+            for m in data.root
+        ]
+
+        await self.ch.execute(
+            "INSERT INTO infra.metrics_raw FORMAT JSONEachRow",
+            rows
         )
