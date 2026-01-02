@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     clickhouse_host: str
+    clickhouse_port: int
     clickhouse_db: str
     clickhouse_user: str
     clickhouse_password: str
@@ -14,6 +15,10 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
     )
+
+    @property
+    def clickhouse_url(self) -> str:
+        return f"http://{self.clickhouse_host}:{self.clickhouse_port}"
 
 
 settings = Settings()
