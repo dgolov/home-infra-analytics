@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from aiochclient import ChClient
+from aiochclient import ChClient, Record
 from datetime import datetime
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List, Optional
 
-from src.schemas import MetricBatch, MetricsQuery, Resolution
+from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, Resolution
 
 
 class BaseMetricsRepository:
@@ -20,6 +20,10 @@ class BaseMetricsWriteRepository(ABC, BaseMetricsRepository):
 class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
     @abstractmethod
     async def get_metrics(self, query: MetricsQuery):
+        ...
+
+    @abstractmethod
+    async def get_latest_metrics(self, query: LatestMetricsQuery) -> Optional[Dict[str, str | float]]:
         ...
 
 
@@ -99,6 +103,54 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         """
 
         return await self.ch.fetch(sql)
+
+    async def get_latest_metrics(self, query: LatestMetricsQuery) -> Optional[Dict[str, str | float]]:
+        """ Get latest metrics
+        :param query:
+        :return:
+        """
+        table, bucket = self.__get_table_and_bucket(resolution=query.resolution)
+
+        where: List[str] = [f"metric = '{query.metric}'"]
+
+        select_dims: List[str] = []
+        group_by: List[str] = []
+
+        if query.scope == "vm":
+            where += [
+                f"host = '{query.host}'",
+                f"vm = '{query.vm}'",
+            ]
+            select_dims += ["host", "vm"]
+            group_by += ["host", "vm"]
+
+        elif query.scope == "host":
+            where.append(f"host = '{query.host}'")
+            select_dims.append("host")
+            group_by.append("host")
+
+        subquery: str = f"""
+            SELECT max({bucket})
+            FROM {table}
+            WHERE {" AND ".join(where)}
+        """
+
+        sql: str = f"""
+            SELECT
+                {", ".join(select_dims + [bucket])},
+                sumMerge(sum_value) / countMerge(cnt_value) AS avg,
+                minMerge(min_value) AS min,
+                maxMerge(max_value) AS max
+            FROM {table}
+            WHERE
+                {" AND ".join(where)}
+                AND {bucket} = ({subquery})
+            GROUP BY
+                {", ".join(group_by + [bucket])}
+        """
+
+        rows: List[Record] = await self.ch.fetch(sql)
+        return rows[0] if rows else None
 
     def __get_table_and_bucket(self, resolution: str) -> Tuple[str, str]:
         """ get item table and time bucket

@@ -39,3 +39,12 @@ class MetricsQuery(BaseModel):
 
     from_ts: datetime
     to_ts: datetime
+
+
+class LatestMetricsQuery(BaseModel):
+    metric: str
+    scope: Scope
+    resolution: Resolution = Resolution.m1
+
+    host: str | None = None
+    vm: str | None = None

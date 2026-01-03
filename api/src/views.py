@@ -3,7 +3,7 @@ from typing import Dict
 
 from core.db import BaseMetricsReadRepository, BaseMetricsWriteRepository
 from dependencies import get_read_repository, get_write_repository
-from src.schemas import MetricBatch, MetricsQuery
+from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery
 
 import logging
 
@@ -31,6 +31,22 @@ async def query_metrics(
     :return:
     """
     return await repository.get_metrics(query)
+
+
+@router.get("/metrics/latest")
+async def latest_metrics(
+    query: LatestMetricsQuery = Depends(),
+    repo: BaseMetricsReadRepository = Depends(get_read_repository),
+) -> Dict[str, str | float]:
+    """ Get latest metrics
+    :param query:
+    :param repo:
+    :return:
+    """
+    result = await repo.get_latest_metrics(query)
+    if not result:
+        return {"status": "no_data"}
+    return result
 
 
 @router.post("/metrics")
