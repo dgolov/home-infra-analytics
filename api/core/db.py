@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from aiochclient import ChClient
 from datetime import datetime
+from typing import Tuple, Dict
 
-from src.schemas import MetricBatch, MetricsQuery
+from src.schemas import MetricBatch, MetricsQuery, Resolution
 
 
 class BaseMetricsRepository:
@@ -24,6 +25,10 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
 class MetricsWriteRepository(BaseMetricsWriteRepository):
     async def add_metric(self, data: MetricBatch):
+        """ insert metric batch
+        :param data:
+        :return:
+        """
         now = datetime.utcnow()
 
         rows = [
@@ -46,19 +51,33 @@ class MetricsWriteRepository(BaseMetricsWriteRepository):
 
 
 class MetricsReadRepository(BaseMetricsReadRepository):
+    TABLE_BY_RESOLUTION: Dict[str, str] = {
+        Resolution.m1: "infra.metrics_1m",
+        Resolution.m5: "infra.metrics_5m",
+        Resolution.h1: "infra.metrics_1h",
+    }
+
     async def get_metrics(self, query: MetricsQuery):
+        """ Get metrics
+        :param query:
+        :return:
+        """
+        table, bucket = self.__get_table_and_bucket(resolution=query.resolution)
+
         where = [
             f"metric = '{query.metric}'",
-            f"minute >= toDateTime('{query.from_ts:%Y-%m-%d %H:%M:%S}')",
-            f"minute <= toDateTime('{query.to_ts:%Y-%m-%d %H:%M:%S}')",
+            f"{bucket} >= toDateTime('{query.from_ts:%Y-%m-%d %H:%M:%S}')",
+            f"{bucket} <= toDateTime('{query.to_ts:%Y-%m-%d %H:%M:%S}')",
         ]
 
-        select_dims = ["minute"]
-        group_by = ["minute"]
+        select_dims = [bucket]
+        group_by = [bucket]
 
         if query.scope == "vm":
-            where.append(f"host = '{query.host}'")
-            where.append(f"vm = '{query.vm}'")
+            where += [
+                f"host = '{query.host}'",
+                f"vm = '{query.vm}'",
+            ]
             select_dims += ["host", "vm"]
             group_by += ["host", "vm"]
 
@@ -73,10 +92,19 @@ class MetricsReadRepository(BaseMetricsReadRepository):
                     sumMerge(sum_value) / countMerge(cnt_value) AS avg,
                     minMerge(min_value) AS min,
                     maxMerge(max_value) AS max
-                FROM infra.metrics_1m
+                FROM {table}
                 WHERE {" AND ".join(where)}
                 GROUP BY {", ".join(group_by)}
-                ORDER BY minute
+                ORDER BY {bucket}
         """
 
         return await self.ch.fetch(sql)
+
+    def __get_table_and_bucket(self, resolution: str) -> Tuple[str, str]:
+        """ get item table and time bucket
+        :param resolution:
+        :return:
+        """
+        table: str = self.TABLE_BY_RESOLUTION[resolution]
+        bucket: str = "minute" if resolution == Resolution.m1 else "bucket"
+        return table, bucket

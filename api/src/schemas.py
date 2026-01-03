@@ -23,10 +23,19 @@ class Scope(str, Enum):
     global_ = "global"
 
 
+class Resolution(str, Enum):
+    m1 = "1m"
+    m5 = "5m"
+    h1 = "1h"
+
+
 class MetricsQuery(BaseModel):
     metric: str
     scope: Scope
+    resolution: Resolution = Resolution.m1
+
     host: str | None = None
     vm: str | None = None
+
     from_ts: datetime
     to_ts: datetime
