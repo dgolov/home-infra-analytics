@@ -61,21 +61,21 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         Resolution.h1: "infra.metrics_1h",
     }
 
-    async def get_metrics(self, query: MetricsQuery):
+    async def get_metrics(self, query: MetricsQuery) -> List[Record]:
         """ Get metrics
         :param query:
         :return:
         """
         table, bucket = self.__get_table_and_bucket(resolution=query.resolution)
 
-        where = [
+        where: List[str] = [
             f"metric = '{query.metric}'",
             f"{bucket} >= toDateTime('{query.from_ts:%Y-%m-%d %H:%M:%S}')",
             f"{bucket} <= toDateTime('{query.to_ts:%Y-%m-%d %H:%M:%S}')",
         ]
 
-        select_dims = [bucket]
-        group_by = [bucket]
+        select_dims: List[str] = [bucket]
+        group_by: List[str] = [bucket]
 
         if query.scope == "vm":
             where += [
@@ -90,7 +90,7 @@ class MetricsReadRepository(BaseMetricsReadRepository):
             select_dims.append("host")
             group_by.append("host")
 
-        sql = f"""
+        sql: str = f"""
                 SELECT
                     {", ".join(select_dims)},
                     sumMerge(sum_value) / countMerge(cnt_value) AS avg,

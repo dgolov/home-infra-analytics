@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from typing import Dict
+from typing import Dict, List
 
 from core.db import BaseMetricsReadRepository, BaseMetricsWriteRepository
 from dependencies import get_read_repository, get_write_repository
@@ -24,8 +24,8 @@ async def test() -> Dict[str, str]:
 async def query_metrics(
         query: MetricsQuery = Depends(),
         repository: BaseMetricsReadRepository = Depends(get_read_repository)
-):
-    """
+) -> List[Dict[str, str | float]]:
+    """ Get metrics
     :param query:
     :param repository:
     :return:
