@@ -1,6 +1,6 @@
 CREATE DATABASE IF NOT EXISTS infra;
 
-CREATE USER infra_user
+CREATE USER IF NOT EXISTS infra_user
 IDENTIFIED WITH plaintext_password BY 'infra_pass';
 
 GRANT ALL ON infra.* TO infra_user;
@@ -17,4 +17,43 @@ CREATE TABLE infra.metrics_raw
 )
 ENGINE = MergeTree
 PARTITION BY date
-ORDER BY (metric, host, ts);
+ORDER BY (metric, host, vm, ts);
+
+CREATE TABLE infra.metrics_1m (
+    date Date,
+    minute DateTime,
+    host String,
+    vm String,
+    metric LowCardinality(String),
+
+    avg_value AggregateFunction(avg, Float64),
+    min_value AggregateFunction(min, Float64),
+    max_value AggregateFunction(max, Float64),
+    sum_value AggregateFunction(sum, Float64),
+    cnt_value AggregateFunction(count)
+) ENGINE = AggregatingMergeTree()
+PARTITION BY date
+ORDER BY (metric, host, vm, minute);
+
+CREATE MATERIALIZED VIEW infra.mv_metrics_1m
+TO infra.metrics_1m
+AS
+SELECT
+    date,
+    toStartOfMinute(ts) AS minute,
+    host,
+    vm,
+    metric,
+
+    avgState(value) AS avg_value,
+    minState(value) AS min_value,
+    maxState(value) AS max_value,
+    sumState(value) AS sum_value,
+    countState()    AS cnt_value
+FROM infra.metrics_raw
+GROUP BY
+    date,
+    minute,
+    host,
+    vm,
+    metric;
