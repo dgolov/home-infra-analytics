@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from core.db import BaseMetricsReadRepository, BaseMetricsWriteRepository
 from dependencies import get_read_repository, get_write_repository
@@ -43,7 +43,7 @@ async def latest_metrics(
     :param repo:
     :return:
     """
-    result = await repo.get_latest_metrics(query)
+    result: Optional[Dict[str, str | float]] = await repo.get_latest_metrics(query)
     if not result:
         return {"status": "no_data"}
     return result

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from aiochclient import ChClient, Record
 from datetime import datetime
-from typing import Tuple, Dict, List, Optional
+from typing import Tuple, Dict, List, Optional, Any
 
 from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, Resolution
 
@@ -28,14 +28,14 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
 
 class MetricsWriteRepository(BaseMetricsWriteRepository):
-    async def add_metric(self, data: MetricBatch):
+    async def add_metric(self, data: MetricBatch) -> List[Record]:
         """ insert metric batch
         :param data:
         :return:
         """
-        now = datetime.utcnow()
+        now: datetime = datetime.utcnow()
 
-        rows = [
+        rows: List[Dict[str, Any]] = [
             {
                 "date": now.date().isoformat(),
                 "ts": now.strftime("%Y-%m-%d %H:%M:%S"),
