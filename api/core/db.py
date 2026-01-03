@@ -3,7 +3,10 @@ from aiochclient import ChClient, Record
 from datetime import datetime
 from typing import Tuple, Dict, List, Optional, Any
 
-from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, Resolution
+from src.schemas import (
+    MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, Resolution,
+    CardinalityScope
+)
 
 
 class BaseMetricsRepository:
@@ -28,6 +31,10 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
     @abstractmethod
     async def get_top_metrics(self, query: MetricsTopQuery):
+        ...
+
+    @abstractmethod
+    async def get_cardinality_metrics(self, query: MetricsCardinalityQuery):
         ...
 
 
@@ -201,6 +208,44 @@ class MetricsReadRepository(BaseMetricsReadRepository):
             """
 
         return await self.ch.fetch(sql)
+
+    async def get_cardinality_metrics(self, query: MetricsCardinalityQuery) -> Dict[str, int]:
+        """ get cardinality metrics
+        :param query:
+        :return:
+        """
+        table, bucket = self.__get_table_and_bucket(resolution=query.resolution)
+
+        if query.scope == CardinalityScope.vm:
+            uniq_expr = "uniq(vm)"
+        elif query.scope == CardinalityScope.host:
+            uniq_expr = "uniq(host)"
+        elif query.scope == CardinalityScope.metric:
+            uniq_expr = "uniq(metric)"
+        else:
+            raise ValueError("Invalid scope")
+
+        where: List[str] = []
+
+        if query.from_ts and query.to_ts:
+            where += [
+                f"{bucket} >= toDateTime('{query.from_ts:%Y-%m-%d %H:%M:%S}')",
+                f"{bucket} <= toDateTime('{query.to_ts:%Y-%m-%d %H:%M:%S}')"
+            ]
+        else:
+            where.append(
+                f"{bucket} = (SELECT max({bucket}) FROM {table})"
+            )
+
+        sql: str = f"""
+            SELECT
+                {uniq_expr} AS count
+            FROM {table}
+            WHERE {" AND ".join(where)}
+        """
+
+        rows: List[Record] = await self.ch.fetch(sql)
+        return rows[0] if rows else {"count": 0}
 
     def __get_table_and_bucket(self, resolution: str) -> Tuple[str, str]:
         """ get item table and time bucket

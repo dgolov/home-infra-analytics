@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from core.db import BaseMetricsReadRepository, BaseMetricsWriteRepository
 from dependencies import get_read_repository, get_write_repository
-from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery
+from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery
 
 import logging
 
@@ -60,6 +60,19 @@ async def metrics_top(
     :return:
     """
     return await repo.get_top_metrics(query=query)
+
+
+@router.get("/metrics/cardinality")
+async def metrics_cardinality(
+    query: MetricsCardinalityQuery = Depends(),
+    repo: BaseMetricsReadRepository = Depends(get_read_repository),
+) -> Dict[str, int]:
+    """ Get cardinality metrics
+    :param query:
+    :param repo:
+    :return:
+    """
+    return await repo.get_cardinality_metrics(query=query)
 
 
 @router.post("/metrics")

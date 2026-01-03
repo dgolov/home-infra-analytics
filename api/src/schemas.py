@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, RootModel
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class Metric(BaseModel):
@@ -21,6 +21,12 @@ class Scope(str, Enum):
     vm = "vm"
     host = "host"
     global_ = "global"
+
+
+class CardinalityScope(str, Enum):
+    vm = "vm"
+    host = "host"
+    metric = "metric"
 
 
 class Resolution(str, Enum):
@@ -57,3 +63,11 @@ class MetricsTopQuery(BaseModel):
     limit: int = 10
 
     host: str | None = None
+
+
+class MetricsCardinalityQuery(BaseModel):
+    scope: CardinalityScope
+    resolution: Resolution = Resolution.m1
+
+    from_ts: Optional[datetime] = None
+    to_ts: Optional[datetime] = None
