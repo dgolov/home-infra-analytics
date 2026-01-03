@@ -36,11 +36,20 @@ async def shutdown():
 
 
 @app.middleware("http")
-async def exception_middleware(request: Request, call_next):
+async def requests_middleware(request: Request, call_next):
+    """ logging http requests and errors
+    :param request:
+    :param call_next:
+    :return:
+    """
     try:
         response = await call_next(request)
+        params = request.scope['query_string'].decode()
+        source_url = f"{request.scope['client'][0]}:{request.scope['client'][1]}"
+        if params:
+            params = f"?{params}"
         logger.debug(
-            f"{request.scope['client'][0]}: {request.scope['client'][1]} - '{request.method} {request.scope['path']} "
+            f"{source_url} - '{request.method} {request.scope['path'] + params} "
             f"{request.scope['scheme']}/{request.scope['http_version']} {response.status_code}'"
         )
         return response
