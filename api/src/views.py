@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from core.db import BaseMetricsReadRepository, BaseMetricsWriteRepository
 from dependencies import get_read_repository, get_write_repository
-from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery
+from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery
 
 import logging
 
@@ -43,10 +43,23 @@ async def latest_metrics(
     :param repo:
     :return:
     """
-    result: Optional[Dict[str, str | float]] = await repo.get_latest_metrics(query)
+    result: Optional[Dict[str, str | float]] = await repo.get_latest_metrics(query=query)
     if not result:
         return {"status": "no_data"}
     return result
+
+
+@router.get("/metrics/top")
+async def metrics_top(
+    query: MetricsTopQuery = Depends(),
+    repo: BaseMetricsReadRepository = Depends(get_read_repository),
+) -> List[Dict[str, str | float]]:
+    """ Get top metrics by host or vm
+    :param query:
+    :param repo:
+    :return:
+    """
+    return await repo.get_top_metrics(query=query)
 
 
 @router.post("/metrics")

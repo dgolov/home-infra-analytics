@@ -48,3 +48,12 @@ class LatestMetricsQuery(BaseModel):
 
     host: str | None = None
     vm: str | None = None
+
+
+class MetricsTopQuery(BaseModel):
+    metric: str
+    scope: Scope
+    resolution: Resolution = Resolution.m1
+    limit: int = 10
+
+    host: str | None = None

@@ -3,7 +3,7 @@ from aiochclient import ChClient, Record
 from datetime import datetime
 from typing import Tuple, Dict, List, Optional, Any
 
-from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, Resolution
+from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, Resolution
 
 
 class BaseMetricsRepository:
@@ -24,6 +24,10 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
     @abstractmethod
     async def get_latest_metrics(self, query: LatestMetricsQuery) -> Optional[Dict[str, str | float]]:
+        ...
+
+    @abstractmethod
+    async def get_top_metrics(self, query: MetricsTopQuery):
         ...
 
 
@@ -151,6 +155,52 @@ class MetricsReadRepository(BaseMetricsReadRepository):
 
         rows: List[Record] = await self.ch.fetch(sql)
         return rows[0] if rows else None
+
+    async def get_top_metrics(self, query: MetricsTopQuery) -> List[Record]:
+        """ get top metrics by host or vm
+        :param query:
+        :return:
+        """
+        table, bucket = self.__get_table_and_bucket(resolution=query.resolution)
+
+        where = [f"metric = '{query.metric}'"]
+
+        if query.scope == "vm":
+            group_by = ["host", "vm"]
+            select_dims = ["host", "vm"]
+            if query.host:
+                where.append(f"host = '{query.host}'")
+
+        elif query.scope == "host":
+            group_by = ["host"]
+            select_dims = ["host"]
+
+        else:
+            raise ValueError("scope must be vm or host")
+
+        last_bucket_sql = f"""
+                SELECT max({bucket})
+                FROM {table}
+                WHERE {" AND ".join(where)}
+            """
+
+        sql = f"""
+            SELECT
+                {", ".join(select_dims)},
+                sumMerge(sum_value) / countMerge(cnt_value) AS avg,
+                minMerge(min_value) AS min,
+                maxMerge(max_value) AS max
+            FROM {table}
+            WHERE
+                {" AND ".join(where)}
+                AND {bucket} = ({last_bucket_sql})
+            GROUP BY
+                {", ".join(group_by)}
+            ORDER BY avg DESC
+            LIMIT {query.limit}
+            """
+
+        return await self.ch.fetch(sql)
 
     def __get_table_and_bucket(self, resolution: str) -> Tuple[str, str]:
         """ get item table and time bucket
