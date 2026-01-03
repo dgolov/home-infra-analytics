@@ -36,14 +36,14 @@ async def query_metrics(
 @router.get("/metrics/latest")
 async def latest_metrics(
     query: LatestMetricsQuery = Depends(),
-    repo: BaseMetricsReadRepository = Depends(get_read_repository),
+    repository: BaseMetricsReadRepository = Depends(get_read_repository),
 ) -> Dict[str, str | float]:
     """ Get latest metrics
     :param query:
-    :param repo:
+    :param repository:
     :return:
     """
-    result: Optional[Dict[str, str | float]] = await repo.get_latest_metrics(query=query)
+    result: Optional[Dict[str, str | float]] = await repository.get_latest_metrics(query=query)
     if not result:
         return {"status": "no_data"}
     return result
@@ -52,27 +52,27 @@ async def latest_metrics(
 @router.get("/metrics/top")
 async def metrics_top(
     query: MetricsTopQuery = Depends(),
-    repo: BaseMetricsReadRepository = Depends(get_read_repository),
+    repository: BaseMetricsReadRepository = Depends(get_read_repository),
 ) -> List[Dict[str, str | float]]:
     """ Get top metrics by host or vm
     :param query:
-    :param repo:
+    :param repository:
     :return:
     """
-    return await repo.get_top_metrics(query=query)
+    return await repository.get_top_metrics(query=query)
 
 
 @router.get("/metrics/cardinality")
 async def metrics_cardinality(
     query: MetricsCardinalityQuery = Depends(),
-    repo: BaseMetricsReadRepository = Depends(get_read_repository),
+    repository: BaseMetricsReadRepository = Depends(get_read_repository),
 ) -> Dict[str, int]:
     """ Get cardinality metrics
     :param query:
-    :param repo:
+    :param repository:
     :return:
     """
-    return await repo.get_cardinality_metrics(query=query)
+    return await repository.get_cardinality_metrics(query=query)
 
 
 @router.post("/metrics")
