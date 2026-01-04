@@ -1,9 +1,12 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from core.db import BaseMetricsReadRepository, BaseMetricsWriteRepository
 from dependencies import get_read_repository, get_write_repository
-from src.schemas import MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery
+from src.schemas import (
+    MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery
+)
 
 import logging
 
@@ -24,7 +27,7 @@ async def test() -> Dict[str, str]:
 async def query_metrics(
         query: MetricsQuery = Depends(),
         repository: BaseMetricsReadRepository = Depends(get_read_repository)
-) -> List[Dict[str, str | float]]:
+) -> List[Dict[str, str | float | datetime]]:
     """ Get metrics
     :param query:
     :param repository:
@@ -73,6 +76,19 @@ async def metrics_cardinality(
     :return:
     """
     return await repository.get_cardinality_metrics(query=query)
+
+
+@router.get("/metrics/compare")
+async def metrics_compare(
+    query: MetricsCompareQuery = Depends(),
+    repository: BaseMetricsReadRepository = Depends(get_read_repository)
+) -> Dict[str, Any]:
+    """ Get compare metrics
+    :param query:
+    :param repository:
+    :return:
+    """
+    return await repository.get_compare_metrics(query=query)
 
 
 @router.post("/metrics")

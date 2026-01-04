@@ -3,9 +3,10 @@ from aiochclient import ChClient, Record
 from datetime import datetime
 from typing import Tuple, Dict, List, Optional, Any
 
+from src.helpers import calculate_delta, calculate_percents
 from src.schemas import (
-    MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, Resolution,
-    CardinalityScope
+    MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery,
+    Resolution, CardinalityScope
 )
 
 
@@ -35,6 +36,10 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
     @abstractmethod
     async def get_cardinality_metrics(self, query: MetricsCardinalityQuery):
+        ...
+
+    @abstractmethod
+    async def get_compare_metrics(self, query: MetricsCompareQuery):
         ...
 
 
@@ -246,6 +251,78 @@ class MetricsReadRepository(BaseMetricsReadRepository):
 
         rows: List[Record] = await self.ch.fetch(sql)
         return rows[0] if rows else {"count": 0}
+
+    async def get_compare_metrics(self, query: MetricsCompareQuery) -> Dict[str, Any]:
+        """ get compare metrics by before period and after period
+        :param query:
+        :return:
+        """
+        table, bucket = self.__get_table_and_bucket(resolution=query.resolution)
+
+        where: List[str] = [f"metric = '{query.metric}'"]
+
+        if query.scope == "vm":
+            where += [
+                f"host = '{query.host}'",
+                f"vm = '{query.vm}'",
+            ]
+        elif query.scope == "host":
+            where.append(f"host = '{query.host}'")
+
+        after: Optional[Record] = await self._aggregate_period(
+            table=table,
+            bucket=bucket,
+            where=where,
+            from_ts=query.from_a,
+            to_ts=query.to_a
+        )
+        before: Optional[Record] = await self._aggregate_period(
+            table=table,
+            bucket=bucket,
+            where=where,
+            from_ts=query.from_b,
+            to_ts=query.to_b
+        )
+
+        if not after or not before:
+            return {"status": "no_data"}
+
+        return {
+            "before": after,
+            "after": before,
+            "delta": {
+                "avg": calculate_delta(after["avg"], before["avg"]),
+                "min": calculate_delta(after["min"], before["min"]),
+                "max": calculate_delta(after["max"], before["max"]),
+            },
+            "delta_percent": {
+                "avg": calculate_percents(after["avg"], before["avg"]),
+                "min": calculate_percents(after["min"], before["min"]),
+                "max": calculate_percents(after["max"], before["max"]),
+            },
+        }
+
+    async def _aggregate_period(
+            self,
+            table: str,
+            bucket: str,
+            where: list[str],
+            from_ts: datetime,
+            to_ts: datetime,
+    ) -> Optional[Record]:
+        sql: str = f"""
+            SELECT
+                sumMerge(sum_value) / countMerge(cnt_value) AS avg,
+                minMerge(min_value) AS min,
+                maxMerge(max_value) AS max
+            FROM {table}
+            WHERE
+                {" AND ".join(where)}
+                AND {bucket} >= toDateTime('{from_ts:%Y-%m-%d %H:%M:%S}')
+                AND {bucket} <= toDateTime('{to_ts:%Y-%m-%d %H:%M:%S}')
+        """
+        rows: List[Record] = await self.ch.fetch(sql)
+        return rows[0] if rows else None
 
     def __get_table_and_bucket(self, resolution: str) -> Tuple[str, str]:
         """ get item table and time bucket

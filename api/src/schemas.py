@@ -65,6 +65,20 @@ class MetricsTopQuery(BaseModel):
     host: str | None = None
 
 
+class MetricsCompareQuery(BaseModel):
+    metric: str
+    scope: Scope
+    resolution: Resolution = Resolution.m1
+
+    from_a: datetime
+    to_a: datetime
+    from_b: datetime
+    to_b: datetime
+
+    host: Optional[str] = None
+    vm: Optional[str] = None
+
+
 class MetricsCardinalityQuery(BaseModel):
     scope: CardinalityScope
     resolution: Resolution = Resolution.m1
