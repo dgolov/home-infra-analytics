@@ -288,8 +288,8 @@ class MetricsReadRepository(BaseMetricsReadRepository):
             return {"status": "no_data"}
 
         return {
-            "before": after,
-            "after": before,
+            "before": dict(after),
+            "after": dict(before),
             "delta": {
                 "avg": calculate_delta(after["avg"], before["avg"]),
                 "min": calculate_delta(after["min"], before["min"]),
