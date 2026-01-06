@@ -4,8 +4,10 @@ from typing import Any, Dict, List, Optional
 
 from core.db import BaseMetricsReadRepository, BaseMetricsWriteRepository
 from dependencies import get_read_repository, get_write_repository
+from src.helpers import detect_direction
 from src.schemas import (
-    MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery
+    MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery,
+    MetricsTrendQuery
 )
 
 import logging
@@ -89,6 +91,28 @@ async def metrics_compare(
     :return:
     """
     return await repository.get_compare_metrics(query=query)
+
+
+@router.get("/metrics/trend")
+async def metrics_trend(
+        query: MetricsTrendQuery = Depends(),
+        repository: BaseMetricsReadRepository = Depends(get_read_repository)
+) -> Dict[str, str | float]:
+    """ Get trend metrics
+    :param query:
+    :param repository:
+    :return:
+    """
+    trend: Optional[Dict[str, float]] = await repository.get_trend_metrics(query=query)
+
+    if not trend:
+        return {"status": "no_data"}
+
+    return {
+        "metric": query.metric,
+        "slope": trend["slope"],
+        "direction": detect_direction(trend["slope"]),
+    }
 
 
 @router.post("/metrics")

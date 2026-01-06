@@ -6,7 +6,7 @@ from typing import Tuple, Dict, List, Optional, Any
 from src.helpers import calculate_delta, calculate_percents
 from src.schemas import (
     MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery,
-    Resolution, CardinalityScope
+    Resolution, CardinalityScope, MetricsTrendQuery
 )
 
 
@@ -40,6 +40,10 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
     @abstractmethod
     async def get_compare_metrics(self, query: MetricsCompareQuery):
+        ...
+
+    @abstractmethod
+    async def get_trend_metrics(self, query: MetricsTrendQuery) -> Dict[str, float]:
         ...
 
 
@@ -302,6 +306,47 @@ class MetricsReadRepository(BaseMetricsReadRepository):
             },
         }
 
+    async def get_trend_metrics(self, query: MetricsTrendQuery) -> Optional[Dict[str, float]]:
+        """
+        :param query:
+        :return:
+        """
+        table, bucket = self.__get_table_and_bucket(resolution=query.resolution)
+
+        where: List[str] = [f"metric = '{query.metric}'"]
+
+        if query.scope == "vm":
+            where += [
+                f"host = '{query.host}'",
+                f"vm = '{query.vm}'",
+            ]
+        elif query.scope == "host":
+            where.append(f"host = '{query.host}'")
+
+        sql = f"""
+            SELECT
+                {bucket} AS ts,
+                avgMerge(avg_value) AS avg_value
+            FROM {table}
+            WHERE
+                {" AND ".join(where)}
+                AND {bucket} >= toDateTime('{query.from_ts:%Y-%m-%d %H:%M:%S}')
+                AND {bucket} <= toDateTime('{query.to_ts:%Y-%m-%d %H:%M:%S}')
+            GROUP BY ts
+            ORDER BY ts
+        """
+
+        rows: List[Record] = await self.ch.fetch(sql)
+        if not rows:
+            return None
+
+        ts_list = [r["ts"].timestamp() for r in rows]
+        avg_list = [r["avg_value"] for r in rows]
+
+        slope, intercept = self.__linear_regression(ts_list, avg_list)
+
+        return {"slope": slope, "intercept": intercept}
+
     async def _aggregate_period(
             self,
             table: str,
@@ -332,3 +377,25 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         table: str = self.TABLE_BY_RESOLUTION[resolution]
         bucket: str = "minute" if resolution == Resolution.m1 else "bucket"
         return table, bucket
+
+    @staticmethod
+    def __linear_regression(ts_list: list[float], avg_list: list[float]) -> tuple[float, float]:
+        """ get slope and intercept for trend metrics
+        :param ts_list:
+        :param avg_list:
+        :return:
+        """
+        n = len(ts_list)
+        if n == 0:
+            return 0.0, 0.0
+        if n == 1:
+            return 0.0, avg_list[0]
+
+        sum_ts_list = sum(ts_list)
+        sum_avg_list = sum(avg_list)
+        sum_xx = sum(v * v for v in ts_list)
+        sum_xy = sum(v * u for v, u in zip(ts_list, avg_list))
+
+        slope = (n * sum_xy - sum_ts_list * sum_avg_list) / (n * sum_xx - sum_ts_list * sum_ts_list)
+        intercept = (sum_avg_list - slope * sum_ts_list) / n
+        return slope, intercept
