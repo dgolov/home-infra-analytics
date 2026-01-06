@@ -40,13 +40,13 @@ async def query_metrics(
 async def latest_metrics(
     query: LatestMetricsQuery = Depends(),
     repository: BaseMetricsReadRepository = Depends(get_read_repository),
-) -> Dict[str, str | float]:
+) -> Dict[str, str | float | datetime]:
     """ Get latest metrics
     :param query:
     :param repository:
     :return:
     """
-    result: Optional[Dict[str, str | float]] = await repository.get_latest_metrics(query=query)
+    result: Optional[Dict[str, str | float | datetime]] = await repository.get_latest_metrics(query=query)
     if not result:
         return {"status": "no_data"}
     return result
