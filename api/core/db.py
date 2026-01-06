@@ -48,7 +48,7 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
 
 class MetricsWriteRepository(BaseMetricsWriteRepository):
-    async def add_metric(self, data: MetricBatch) -> List[Record]:
+    async def add_metric(self, data: MetricBatch) -> None:
         """ insert metric batch
         :param data:
         :return:
