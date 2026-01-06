@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, RootModel, model_validator
 
 from typing import Dict, List, Optional
 
@@ -18,21 +18,21 @@ class MetricBatch(RootModel[List[Metric]]):
 
 
 class Scope(str, Enum):
-    vm: str = Field(default="vm")
-    host: str = Field(default="host")
-    global_: str = Field(default="global")
+    vm: str = "vm"
+    host: str = "host"
+    global_: str = "global"
 
 
 class CardinalityScope(str, Enum):
-    vm: str = Field(default="vm")
-    host: str = Field(default="host")
-    metric: str = Field(default="metric")
+    vm: str = "vm"
+    host: str = "host"
+    metric: str = "metric"
 
 
 class Resolution(str, Enum):
-    m1: str = Field(default="1m")
-    m5: str = Field(default="5m")
-    h1: str = Field(default="1h")
+    m1: str = "1m"
+    m5: str = "5m"
+    h1: str = "1h"
 
 
 class MetricsQuery(BaseModel):
@@ -85,3 +85,26 @@ class MetricsCardinalityQuery(BaseModel):
 
     from_ts: Optional[datetime] = Field(default=None)
     to_ts: Optional[datetime] = Field(default=None)
+
+
+class MetricsTrendQuery(BaseModel):
+    metric: str
+    scope: Scope
+    resolution: Resolution = Field(default=Resolution.m1)
+
+    from_ts: datetime
+    to_ts: datetime
+
+    host: Optional[str] = Field(default=None)
+    vm: Optional[str] = Field(default=None)
+
+    @model_validator(mode="after")
+    def validate_scope(self):
+        if self.scope == Scope.host and not self.host:
+            raise ValueError("host is required when scope=host")
+
+        if self.scope == Scope.vm:
+            if not self.host or not self.vm:
+                raise ValueError("host and vm are required when scope=vm")
+
+        return self
