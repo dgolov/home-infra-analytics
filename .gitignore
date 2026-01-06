@@ -2,11 +2,11 @@ env/
 venv/
 
 .env
+.venv
 
 __pycache__
 .idea/
 
 *.log
+
 /clickhouse/init.sql
-/clickhouse/users.d/default-user.xml
-/clickhouse/users.d/infra_user.xml
