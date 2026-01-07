@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - clickhouse_data:/var/lib/clickhouse
+
+  api:
+    build: ./api
+    container_name: metrics-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - clickhouse
+
+volumes:
+  clickhouse_data:

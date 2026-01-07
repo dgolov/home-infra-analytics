@@ -2,8 +2,11 @@ env/
 venv/
 
 .env
+.venv
 
 __pycache__
 .idea/
 
 *.log
+
+/clickhouse/init.sql
