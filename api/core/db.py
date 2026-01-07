@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from aiochclient import ChClient, Record
+from core.redis import redis_cache
 from datetime import datetime
 from typing import Tuple, Dict, List, Optional, Any
 
@@ -81,7 +82,8 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         Resolution.h1: "infra.metrics_1h",
     }
 
-    async def get_metrics(self, query: MetricsQuery) -> List[Record]:
+    @redis_cache(key_prefix="metrics", ttl=60)
+    async def get_metrics(self, query: MetricsQuery) -> List[Dict[str, str | float | datetime]]:
         """ Get metrics
         :param query:
         :return:
@@ -122,8 +124,10 @@ class MetricsReadRepository(BaseMetricsReadRepository):
                 ORDER BY {bucket}
         """
 
-        return await self.ch.fetch(sql)
+        result = await self.ch.fetch(sql)
+        return list(dict(row) for row in result)
 
+    @redis_cache(key_prefix="latest", ttl=60)
     async def get_latest_metrics(self, query: LatestMetricsQuery) -> Optional[Dict[str, str | float]]:
         """ Get latest metrics
         :param query:
@@ -170,9 +174,10 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         """
 
         rows: List[Record] = await self.ch.fetch(sql)
-        return rows[0] if rows else None
+        return dict(rows[0]) if rows else None
 
-    async def get_top_metrics(self, query: MetricsTopQuery) -> List[Record]:
+    @redis_cache(key_prefix="top", ttl=60)
+    async def get_top_metrics(self, query: MetricsTopQuery) -> List[Dict[str, str | float]]:
         """ get top metrics by host or vm
         :param query:
         :return:
@@ -216,8 +221,10 @@ class MetricsReadRepository(BaseMetricsReadRepository):
             LIMIT {query.limit}
             """
 
-        return await self.ch.fetch(sql)
+        result = await self.ch.fetch(sql)
+        return list(dict(row) for row in result)
 
+    @redis_cache(key_prefix="cardinality", ttl=60)
     async def get_cardinality_metrics(self, query: MetricsCardinalityQuery) -> Dict[str, int]:
         """ get cardinality metrics
         :param query:
@@ -254,8 +261,9 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         """
 
         rows: List[Record] = await self.ch.fetch(sql)
-        return rows[0] if rows else {"count": 0}
+        return dict(rows[0]) if rows else {"count": 0}
 
+    @redis_cache(key_prefix="compare", ttl=60)
     async def get_compare_metrics(self, query: MetricsCompareQuery) -> Dict[str, Any]:
         """ get compare metrics by before period and after period
         :param query:
@@ -306,6 +314,7 @@ class MetricsReadRepository(BaseMetricsReadRepository):
             },
         }
 
+    @redis_cache(key_prefix="trend", ttl=60)
     async def get_trend_metrics(self, query: MetricsTrendQuery) -> Optional[Dict[str, float]]:
         """
         :param query:
@@ -385,10 +394,10 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         :param avg_list:
         :return:
         """
-        n = len(ts_list)
-        if n == 0:
+        ts_len = len(ts_list)
+        if ts_len == 0:
             return 0.0, 0.0
-        if n == 1:
+        if ts_len == 1:
             return 0.0, avg_list[0]
 
         sum_ts_list = sum(ts_list)
@@ -396,6 +405,6 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         sum_xx = sum(v * v for v in ts_list)
         sum_xy = sum(v * u for v, u in zip(ts_list, avg_list))
 
-        slope = (n * sum_xy - sum_ts_list * sum_avg_list) / (n * sum_xx - sum_ts_list * sum_ts_list)
-        intercept = (sum_avg_list - slope * sum_ts_list) / n
+        slope = (ts_len * sum_xy - sum_ts_list * sum_avg_list) / (ts_len * sum_xx - sum_ts_list * sum_ts_list)
+        intercept = (sum_avg_list - slope * sum_ts_list) / ts_len
         return slope, intercept
