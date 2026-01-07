@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 def calculate_delta(a: float, b: float) -> float:
     return b - a
 
@@ -17,3 +20,9 @@ def detect_direction(slope: float, eps: float = 0.0001) -> str:
     if slope < -eps:
         return "down"
     return "flat"
+
+
+def json_serializer(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
