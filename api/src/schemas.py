@@ -117,3 +117,11 @@ class MetricsBottomQuery(BaseModel):
     limit: int = 10
 
     host: Optional[str] = Field(default=None)
+
+
+class MetricsExtremesQuery(BaseModel):
+    resolution: Resolution = Resolution.m1
+    limit: int = 5
+
+    from_ts: datetime
+    to_ts: datetime

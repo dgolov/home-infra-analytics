@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
 from aiochclient import ChClient, Record
-from core.redis import redis_cache
+from collections import defaultdict
 from datetime import datetime
 from typing import Tuple, Dict, List, Optional, Any
 
+from core.redis import redis_cache
 from src.helpers import calculate_delta, calculate_percents
 from src.schemas import (
     MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery,
-    Resolution, CardinalityScope, MetricsTrendQuery, MetricsBottomQuery
+    Resolution, CardinalityScope, MetricsTrendQuery, MetricsBottomQuery, MetricsExtremesQuery
 )
 
 
@@ -37,6 +38,10 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
     @abstractmethod
     async def get_bottom_metrics(self, query: MetricsBottomQuery):
+        ...
+
+    @abstractmethod
+    async def get_extreme_metrics(self, query: MetricsExtremesQuery) -> Dict[str, List[Dict[str, str | float]]]:
         ...
 
     @abstractmethod
@@ -84,6 +89,12 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         Resolution.m1: "infra.metrics_1m",
         Resolution.m5: "infra.metrics_5m",
         Resolution.h1: "infra.metrics_1h",
+    }
+    EXTREME_RULES = {
+        "cpu_usage": "desc",
+        "ram_used_pct": "asc",
+        "disk_used_pct": "desc",
+        "net_io": "desc",
     }
 
     @redis_cache(key_prefix="metrics", ttl=60)
@@ -228,7 +239,7 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         result = await self.ch.fetch(sql)
         return list(dict(row) for row in result)
 
-    @redis_cache(key_prefix="top", ttl=60)
+    @redis_cache(key_prefix="bottom", ttl=60)
     async def get_bottom_metrics(self, query: MetricsTopQuery) -> List[Dict[str, str | float]]:
         """ Get bottom metrics
         :param query:
@@ -262,6 +273,35 @@ class MetricsReadRepository(BaseMetricsReadRepository):
 
         result: List[Record] = await self.ch.fetch(sql)
         return list(dict(row) for row in result)
+
+    @redis_cache(key_prefix="extreme", ttl=60)
+    async def get_extreme_metrics(self, query: MetricsExtremesQuery) -> Dict[str, List[Dict[str, str | float]]]:
+        """ get extreme metrics
+        :param query:
+        :return:
+        """
+        table, bucket = self.__get_table_and_bucket(query.resolution)
+
+        sql: str = f"""
+                SELECT
+                    vm,
+                    metric,
+                    avgMerge(avg_value) AS value
+                FROM {table}
+                WHERE
+                    metric IN {tuple(self.EXTREME_RULES.keys())}
+                    AND {bucket} >= toDateTime('{query.from_ts:%Y-%m-%d %H:%M:%S}')
+                    AND {bucket} <= toDateTime('{query.to_ts:%Y-%m-%d %H:%M:%S}')
+                GROUP BY
+                    vm,
+                    metric
+            """
+
+        rows: List[Record] = await self.ch.fetch(sql)
+        if not rows:
+            return {}
+
+        return self._sort_extremes(rows, query.limit)
 
     @redis_cache(key_prefix="cardinality", ttl=60)
     async def get_cardinality_metrics(self, query: MetricsCardinalityQuery) -> Dict[str, int]:
@@ -416,6 +456,40 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         """
         rows: List[Record] = await self.ch.fetch(sql)
         return rows[0] if rows else None
+
+    def _sort_extremes(
+            self,
+            rows: List[Record],
+            limit: int,
+    ) -> Dict[str, List[Dict[str, float]]]:
+        """ sort results for extremes metrics by EXTREME_RULES
+        :param rows:
+        :param limit:
+        :return:
+        """
+        grouped: dict[str, list[dict]] = defaultdict(list)
+
+        for row in rows:
+            grouped[row["metric"]].append({
+                "vm": row["vm"],
+                "value": float(row["value"]),
+            })
+
+        result: dict[str, list[dict]] = {}
+
+        for metric, items in grouped.items():
+            order = self.EXTREME_RULES.get(metric, "desc")
+            reverse = order == "desc"
+
+            sorted_items = sorted(
+                items,
+                key=lambda item: item["value"],
+                reverse=reverse,
+            )
+
+            result[metric] = sorted_items[:limit]
+
+        return result
 
     def __get_table_and_bucket(self, resolution: str) -> Tuple[str, str]:
         """ get item table and time bucket

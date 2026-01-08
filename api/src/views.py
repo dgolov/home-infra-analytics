@@ -7,7 +7,7 @@ from dependencies import get_read_repository, get_write_repository
 from src.helpers import detect_direction
 from src.schemas import (
     MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery,
-    MetricsTrendQuery, MetricsBottomQuery
+    MetricsTrendQuery, MetricsBottomQuery, MetricsExtremesQuery
 )
 
 import logging
@@ -78,6 +78,19 @@ async def bottom(
     :return:
     """
     return await repository.get_bottom_metrics(query)
+
+
+@router.get("/metrics/extremes")
+async def extremes(
+        query: MetricsExtremesQuery,
+        repository: BaseMetricsReadRepository = Depends(get_read_repository)
+) -> Dict[str, List[Dict[str, str | float]]]:
+    """ Get extremes metrics
+    :param query:
+    :param repository:
+    :return:
+    """
+    return await repository.get_extreme_metrics(query)
 
 
 @router.get("/metrics/cardinality")
