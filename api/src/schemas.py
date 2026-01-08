@@ -108,3 +108,12 @@ class MetricsTrendQuery(BaseModel):
                 raise ValueError("host and vm are required when scope=vm")
 
         return self
+
+
+class MetricsBottomQuery(BaseModel):
+    metric: str
+    scope: Scope
+    resolution: Resolution = Field(default=Resolution.m1)
+    limit: int = 10
+
+    host: Optional[str] = Field(default=None)

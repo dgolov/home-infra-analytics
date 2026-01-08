@@ -7,7 +7,7 @@ from typing import Tuple, Dict, List, Optional, Any
 from src.helpers import calculate_delta, calculate_percents
 from src.schemas import (
     MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery,
-    Resolution, CardinalityScope, MetricsTrendQuery
+    Resolution, CardinalityScope, MetricsTrendQuery, MetricsBottomQuery
 )
 
 
@@ -33,6 +33,10 @@ class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
 
     @abstractmethod
     async def get_top_metrics(self, query: MetricsTopQuery):
+        ...
+
+    @abstractmethod
+    async def get_bottom_metrics(self, query: MetricsBottomQuery):
         ...
 
     @abstractmethod
@@ -222,6 +226,41 @@ class MetricsReadRepository(BaseMetricsReadRepository):
             """
 
         result = await self.ch.fetch(sql)
+        return list(dict(row) for row in result)
+
+    @redis_cache(key_prefix="top", ttl=60)
+    async def get_bottom_metrics(self, query: MetricsTopQuery) -> List[Dict[str, str | float]]:
+        """ Get bottom metrics
+        :param query:
+        :return:
+        """
+        table, bucket = self.__get_table_and_bucket(resolution=query.resolution)
+
+        where: List[str] = [f"metric = '{query.metric}'"]
+
+        if query.scope == "vm":
+            entity = "vm"
+            if query.host:
+                where.append(f"host = '{query.host}'")
+
+        elif query.scope == "host":
+            entity = "host"
+
+        else:
+            raise ValueError("scope must be vm or host")
+
+        sql: str = f"""
+            SELECT
+                {entity} AS name,
+                avgMerge(avg_value) AS value
+            FROM {table}
+            WHERE {" AND ".join(where)}
+            GROUP BY name
+            ORDER BY value ASC
+            LIMIT {query.limit}
+        """
+
+        result: List[Record] = await self.ch.fetch(sql)
         return list(dict(row) for row in result)
 
     @redis_cache(key_prefix="cardinality", ttl=60)
