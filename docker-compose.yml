@@ -2,13 +2,17 @@ version: "3.9"
 
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    build:
+      context: ./clickhouse
+      dockerfile: Dockerfile
     container_name: clickhouse
     ports:
       - "8123:8123"
       - "9000:9000"
     volumes:
       - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./clickhouse/config.d:/etc/clickhouse-server/config.d
+      - ./clickhouse/users.d:/etc/clickhouse-server/users.d
       - clickhouse_data:/var/lib/clickhouse
 
   api:
