@@ -141,14 +141,14 @@ def redis_cache(key_prefix: str, ttl: int = 60):
                 cache_key = make_cache_key(
                     key=key_prefix,
                     metric=getattr(query, "metric", None),
-                    scope=getattr(query.scope, "value", getattr(query, "scope", None)),
+                    scope=getattr(query, "scope", None),
                     host=getattr(query, "host", None),
                     vm=getattr(query, "vm", None),
                     from_ts=getattr(query, "from_ts", None).isoformat() if getattr(query, "from_ts", None) else "",
                     to_ts=getattr(query, "to_ts", None).isoformat() if getattr(query, "to_ts", None) else "",
                     from_a=getattr(query, "from_a", None).isoformat() if getattr(query, "from_a", None) else "",
                     to_a=getattr(query, "to_a", None).isoformat() if getattr(query, "to_a", None) else "",
-                    resolution=getattr(query.resolution, "value", getattr(query, "resolution", None))
+                    resolution=getattr(query, "resolution", None)
                 )
 
                 cached: Optional[Dict[str, Any]] = await get_cache(cache_key)
