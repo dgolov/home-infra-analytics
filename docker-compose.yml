@@ -1,6 +1,13 @@
 version: "3.9"
 
 services:
+  clickhouse-keeper:
+    image: clickhouse/clickhouse-keeper:25.12
+    container_name: keeper
+    volumes:
+      - ./keeper/config.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
+      - keeper_data:/var/lib/clickhouse-keeper
+
   clickhouse:
     build:
       context: ./clickhouse
@@ -14,16 +21,8 @@ services:
       - ./clickhouse/config.d:/etc/clickhouse-server/config.d
       - ./clickhouse/users.d:/etc/clickhouse-server/users.d
       - clickhouse_data:/var/lib/clickhouse
-
-  api:
-    build: ./api
-    container_name: metrics-api
-    environment:
-      - TZ=Europe/Moscow
-    ports:
-      - "8000:8000"
     depends_on:
-      - clickhouse
+      - clickhouse-keeper
 
   redis:
     image: redis:7-alpine
@@ -36,6 +35,17 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+
+  api:
+    build: ./api
+    container_name: metrics-api
+    environment:
+      - TZ=Europe/Moscow
+    ports:
+      - "8000:8000"
+    depends_on:
+      - clickhouse
+      - redis
 
   grafana:
     image: grafana/grafana:latest
@@ -52,5 +62,6 @@ services:
 
 volumes:
   clickhouse_data:
+  keeper_data:
   redis_data:
   grafana_data:
