@@ -5,6 +5,7 @@ import psutil
 import logging
 import requests
 import socket
+import sys
 
 
 setup_logging(log_level=settings.log_level, log_file=settings.log_path)
@@ -66,5 +67,21 @@ def send(metrics: List[Dict[str, Any]]):
         logger.error(f"Send metrics failed: {e}")
 
 
+def main():
+    try:
+        metrics = collect_metrics()
+        if not metrics:
+            logger.warning("No metrics collected")
+            return
+
+        logger.info(f"Send {len(metrics)} metrics")
+        send(metrics=metrics)
+
+        logger.info("Collector finished successfully")
+    except Exception as e:
+        logger.exception(f"Collector failed - {e}")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    send(metrics=collect_metrics())
+    main()

@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from types import SimpleNamespace
 
 from config import settings, setup_logging
+from core.redis import connect_to_redis
 from src.views import router
 
 import logging
@@ -27,6 +28,11 @@ async def startup():
         user=settings.clickhouse_user,
         password=settings.clickhouse_password,
         database=settings.clickhouse_db
+    )
+    await connect_to_redis(
+        host=settings.redis_host,
+        port=settings.redis_port,
+        password=settings.redis_password
     )
 
 
