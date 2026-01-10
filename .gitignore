@@ -9,7 +9,6 @@ __pycache__
 
 *.log
 
-/clickhouse/init.sql
 /clickhouse/config.d/storage.xml
 /clickhouse/config.d/cluster.xml
 /clickhouse/config.d/listen_hosts.xml
