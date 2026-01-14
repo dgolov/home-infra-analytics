@@ -11,8 +11,9 @@ CREATE TABLE infra.metrics_raw_local ON CLUSTER infra_cluster
     tags Map(String, String)
 )
 ENGINE = MergeTree
-PARTITION BY toYYYYMM(ts)
-ORDER BY (metric, host, vm, ts);
+PARTITION BY date
+ORDER BY (metric, host, vm, ts)
+TTL ts + INTERVAL 2 DAY;
 
 CREATE TABLE infra.metrics_raw ON CLUSTER infra_cluster
 AS infra.metrics_raw_local
@@ -37,7 +38,8 @@ CREATE TABLE infra.metrics_1m_local ON CLUSTER infra_cluster (
     cnt_value AggregateFunction(count)
 ) ENGINE = AggregatingMergeTree()
 PARTITION BY date
-ORDER BY (metric, host, vm, minute);
+ORDER BY (metric, host, vm, minute)
+TTL minute + INTERVAL 14 DAY;
 
 CREATE TABLE infra.metrics_1m ON CLUSTER infra_cluster
 AS infra.metrics_1m_local
@@ -87,7 +89,8 @@ CREATE TABLE infra.metrics_5m_local ON CLUSTER infra_cluster (
 )
 ENGINE = AggregatingMergeTree
 PARTITION BY date
-ORDER BY (metric, host, vm, bucket);
+ORDER BY (metric, host, vm, bucket)
+TTL bucket + INTERVAL 14 DAY;
 
 CREATE MATERIALIZED VIEW infra.mv_metrics_5m_local
     ON CLUSTER infra_cluster
@@ -128,7 +131,8 @@ CREATE TABLE infra.metrics_1h_local ON CLUSTER infra_cluster (
 )
 ENGINE = AggregatingMergeTree
 PARTITION BY date
-ORDER BY (metric, host, vm, bucket);
+ORDER BY (metric, host, vm, bucket)
+TTL bucket + INTERVAL 14 DAY;
 
 CREATE MATERIALIZED VIEW infra.mv_metrics_1h_local
     ON CLUSTER infra_cluster
