@@ -1,0 +1,1 @@
+* * * * * /usr/bin/python3 /opt/collector/collector.py >> /var/log/collector.log 2>&1

@@ -1,23 +1,67 @@
 version: "3.9"
 
 services:
+  clickhouse-keeper:
+    image: clickhouse/clickhouse-keeper:25.12
+    container_name: keeper
+    volumes:
+      - ./keeper/config.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
+      - keeper_data:/var/lib/clickhouse-keeper
+
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    build:
+      context: ./clickhouse
+      dockerfile: Dockerfile
     container_name: clickhouse
     ports:
       - "8123:8123"
       - "9000:9000"
     volumes:
       - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./clickhouse/config.d:/etc/clickhouse-server/config.d
+      - ./clickhouse/users.d:/etc/clickhouse-server/users.d
       - clickhouse_data:/var/lib/clickhouse
+    depends_on:
+      - clickhouse-keeper
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - TZ=Europe/Moscow
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}" ]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   api:
     build: ./api
     container_name: metrics-api
+    environment:
+      - TZ=Europe/Moscow
     ports:
       - "8000:8000"
+    depends_on:
+      - clickhouse
+      - redis
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_INSTALL_PLUGINS=vertamedia-clickhouse-datasource
+      - TZ=Europe/Moscow
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
     depends_on:
       - clickhouse
 
 volumes:
   clickhouse_data:
+  keeper_data:
+  redis_data:
+  grafana_data:

@@ -1,11 +1,6 @@
-CREATE DATABASE IF NOT EXISTS infra;
+CREATE DATABASE IF NOT EXISTS infra ON CLUSTER infra_cluster;
 
-CREATE USER IF NOT EXISTS infra_user
-IDENTIFIED WITH plaintext_password BY 'infra_pass';
-
-GRANT ALL ON infra.* TO infra_user;
-
-CREATE TABLE infra.metrics_raw
+CREATE TABLE infra.metrics_raw_local ON CLUSTER infra_cluster
 (
     date Date,
     ts DateTime,
@@ -17,9 +12,19 @@ CREATE TABLE infra.metrics_raw
 )
 ENGINE = MergeTree
 PARTITION BY date
-ORDER BY (metric, host, vm, ts);
+ORDER BY (metric, host, vm, ts)
+TTL ts + INTERVAL 2 DAY;
 
-CREATE TABLE infra.metrics_1m (
+CREATE TABLE infra.metrics_raw ON CLUSTER infra_cluster
+AS infra.metrics_raw_local
+ENGINE = Distributed(
+    infra_cluster,
+    infra,
+    metrics_raw_local,
+    cityHash64(vm)
+);
+
+CREATE TABLE infra.metrics_1m_local ON CLUSTER infra_cluster (
     date Date,
     minute DateTime,
     host String,
@@ -33,10 +38,21 @@ CREATE TABLE infra.metrics_1m (
     cnt_value AggregateFunction(count)
 ) ENGINE = AggregatingMergeTree()
 PARTITION BY date
-ORDER BY (metric, host, vm, minute);
+ORDER BY (metric, host, vm, minute)
+TTL minute + INTERVAL 14 DAY;
 
-CREATE MATERIALIZED VIEW infra.mv_metrics_1m
-TO infra.metrics_1m
+CREATE TABLE infra.metrics_1m ON CLUSTER infra_cluster
+AS infra.metrics_1m_local
+ENGINE = Distributed(
+    infra_cluster,
+    infra,
+    metrics_1m_local,
+    cityHash64(vm)
+);
+
+CREATE MATERIALIZED VIEW infra.mv_metrics_1m_local
+    ON CLUSTER infra_cluster
+TO infra.metrics_1m_local
 AS
 SELECT
     date,
@@ -50,7 +66,7 @@ SELECT
     maxState(value) AS max_value,
     sumState(value) AS sum_value,
     countState()    AS cnt_value
-FROM infra.metrics_raw
+FROM infra.metrics_raw_local
 GROUP BY
     date,
     minute,
@@ -58,8 +74,7 @@ GROUP BY
     vm,
     metric;
 
-CREATE TABLE infra.metrics_5m
-(
+CREATE TABLE infra.metrics_5m_local ON CLUSTER infra_cluster (
     date Date,
     bucket DateTime,
     host String,
@@ -74,10 +89,12 @@ CREATE TABLE infra.metrics_5m
 )
 ENGINE = AggregatingMergeTree
 PARTITION BY date
-ORDER BY (metric, host, vm, bucket);
+ORDER BY (metric, host, vm, bucket)
+TTL bucket + INTERVAL 14 DAY;
 
-CREATE MATERIALIZED VIEW infra.mv_metrics_5m
-TO infra.metrics_5m
+CREATE MATERIALIZED VIEW infra.mv_metrics_5m_local
+    ON CLUSTER infra_cluster
+TO infra.metrics_5m_local
 AS
 SELECT
     date,
@@ -91,7 +108,7 @@ SELECT
     maxState(value) AS max_value,
     sumState(value) AS sum_value,
     countState()    AS cnt_value
-FROM infra.metrics_raw
+FROM infra.metrics_raw_local
 GROUP BY
     date,
     bucket,
@@ -99,8 +116,7 @@ GROUP BY
     vm,
     metric;
 
-CREATE TABLE infra.metrics_1h
-(
+CREATE TABLE infra.metrics_1h_local ON CLUSTER infra_cluster (
     date Date,
     bucket DateTime,
     host String,
@@ -115,10 +131,12 @@ CREATE TABLE infra.metrics_1h
 )
 ENGINE = AggregatingMergeTree
 PARTITION BY date
-ORDER BY (metric, host, vm, bucket);
+ORDER BY (metric, host, vm, bucket)
+TTL bucket + INTERVAL 14 DAY;
 
-CREATE MATERIALIZED VIEW infra.mv_metrics_1h
-TO infra.metrics_1h
+CREATE MATERIALIZED VIEW infra.mv_metrics_1h_local
+    ON CLUSTER infra_cluster
+TO infra.metrics_1h_local
 AS
 SELECT
     date,
@@ -132,7 +150,7 @@ SELECT
     maxState(value) AS max_value,
     sumState(value) AS sum_value,
     countState()    AS cnt_value
-FROM infra.metrics_raw
+FROM infra.metrics_raw_local
 GROUP BY
     date,
     bucket,

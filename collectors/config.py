@@ -1,3 +1,4 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 import logging
@@ -6,6 +7,7 @@ import sys
 
 LOG_FORMAT = "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+BASE_DIR = Path(__file__).resolve().parent
 
 
 class Settings(BaseSettings):
@@ -16,7 +18,7 @@ class Settings(BaseSettings):
     host: str
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
     )
 

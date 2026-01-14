@@ -1,0 +1,16 @@
+<clickhouse>
+  <users>
+    <infra_user>
+      <password>infra_pass</password>
+      <networks>
+        <ip>0.0.0.0/0</ip>
+      </networks>
+      <profile>default</profile>
+      <quota>default</quota>
+      <allow_databases>
+        <database>infra</database>
+      </allow_databases>
+      <http_port>8123</http_port>
+    </infra_user>
+  </users>
+</clickhouse>
