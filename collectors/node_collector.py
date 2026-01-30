@@ -31,14 +31,24 @@ class Collector:
         self.collect_network_metrics()
 
     def collect_cpu_metrics(self) -> None:
+        cpu_times = psutil.cpu_times_percent()
+
         self._add("cpu_usage", psutil.cpu_percent(interval=None) / 100)
+        self._add("cpu_user", cpu_times.user / 100)
+        self._add("cpu_system", cpu_times.system / 100)
+        self._add("cpu_iowait", getattr(cpu_times, "iowait", 0.0) / 100)
 
     def collect_network_metrics(self) -> None:
         net = psutil.net_io_counters()
+
         self._add("net_bytes_sent", net.bytes_sent)
         self._add("net_bytes_recv", net.bytes_recv)
         self._add("net_packets_sent", net.packets_sent)
         self._add("net_packets_recv", net.packets_recv)
+        self._add("net_err_in", net.errin)
+        self._add("net_err_out", net.errout)
+        self._add("net_drop_in", net.dropin)
+        self._add("net_drop_out", net.dropout)
 
 
     def collect_load_average_metrics(self) -> None:
@@ -51,11 +61,21 @@ class Collector:
 
     def collect_ram_metrics(self) -> None:
         mem = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+
         self._add("ram_used_pct", mem.percent / 100)
+        self._add("ram_available_bytes", mem.available)
+        self._add("swap_used_pct", swap.percent / 100)
 
     def collect_disk_metrics(self) -> None:
         disk = psutil.disk_usage("/")
+        io = psutil.disk_io_counters()
+
         self._add("disk_used_pct", disk.percent / 100, {"mount": "/"})
+        self._add("disk_read_bytes", io.read_bytes)
+        self._add("disk_write_bytes", io.write_bytes)
+        self._add("disk_read_time_ms", io.read_time)
+        self._add("disk_write_time_ms", io.write_time)
 
     def _add(self, metric: str, value: float, tags: Dict[str, str] | None = None) -> None:
         self.metrics.append({
