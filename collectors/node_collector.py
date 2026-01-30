@@ -48,6 +48,35 @@ def collect_network_metrics(metrics: List[Dict[str, Any]]) -> None:
     ])
 
 
+def collect_load_average_metrics(metrics: List[Dict[str, Any]]) -> None:
+    load1, load5, load15 = psutil.getloadavg()
+    cpu_count = psutil.cpu_count()
+
+    metrics.extend([
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "load_1_norm",
+            "value": load1 / cpu_count,
+            "tags": {}
+        },
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "load_5_norm",
+            "value": load5 / cpu_count,
+            "tags": {}
+        },
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "load_15_norm",
+            "value": load15 / cpu_count,
+            "tags": {}
+        },
+    ])
+
+
 def collect_metrics() -> List[Dict[str, Any]]:
     """ Collect system metrics
     :return:
@@ -61,12 +90,7 @@ def collect_metrics() -> List[Dict[str, Any]]:
         "tags": {}
     }]
 
-    load1, load5, load15 = psutil.getloadavg()
-    metrics.extend([
-        {"host": settings.host, "vm": VM, "metric": "load_1", "value": load1, "tags": {}},
-        {"host": settings.host, "vm": VM, "metric": "load_5", "value": load5, "tags": {}},
-        {"host": settings.host, "vm": VM, "metric": "load_15", "value": load15, "tags": {}},
-    ])
+    collect_load_average_metrics(metrics=metrics)
 
     mem = psutil.virtual_memory()
     metrics.append({
