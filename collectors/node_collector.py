@@ -14,6 +14,40 @@ logger = logging.getLogger(__name__)
 VM = socket.gethostname()
 
 
+def collect_network_metrics(metrics: List[Dict[str, Any]]) -> None:
+    net = psutil.net_io_counters()
+    metrics.extend([
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "net_bytes_sent",
+            "value": net.bytes_sent,
+            "tags": {}
+        },
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "net_bytes_recv",
+            "value": net.bytes_recv,
+            "tags": {}
+        },
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "net_packets_sent",
+            "value": net.packets_sent,
+            "tags": {}
+        },
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "net_packets_recv",
+            "value": net.packets_recv,
+            "tags": {}
+        },
+    ])
+
+
 def collect_metrics() -> List[Dict[str, Any]]:
     """ Collect system metrics
     :return:
@@ -52,37 +86,7 @@ def collect_metrics() -> List[Dict[str, Any]]:
         "tags": {"mount": "/"}
     })
 
-    net = psutil.net_io_counters()
-    metrics.extend([
-        {
-            "host": settings.host,
-            "vm": VM,
-            "metric": "net_bytes_sent",
-            "value": net.bytes_sent,
-            "tags": {}
-        },
-        {
-            "host": settings.host,
-            "vm": VM,
-            "metric": "net_bytes_recv",
-            "value": net.bytes_recv,
-            "tags": {}
-        },
-        {
-            "host": settings.host,
-            "vm": VM,
-            "metric": "net_packets_sent",
-            "value": net.packets_sent,
-            "tags": {}
-        },
-        {
-            "host": settings.host,
-            "vm": VM,
-            "metric": "net_packets_recv",
-            "value": net.packets_recv,
-            "tags": {}
-        },
-    ])
+    collect_network_metrics(metrics=metrics)
 
     return metrics
 
