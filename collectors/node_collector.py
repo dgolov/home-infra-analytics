@@ -52,6 +52,38 @@ def collect_metrics() -> List[Dict[str, Any]]:
         "tags": {"mount": "/"}
     })
 
+    net = psutil.net_io_counters()
+    metrics.extend([
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "net_bytes_sent",
+            "value": net.bytes_sent,
+            "tags": {}
+        },
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "net_bytes_recv",
+            "value": net.bytes_recv,
+            "tags": {}
+        },
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "net_packets_sent",
+            "value": net.packets_sent,
+            "tags": {}
+        },
+        {
+            "host": settings.host,
+            "vm": VM,
+            "metric": "net_packets_recv",
+            "value": net.packets_recv,
+            "tags": {}
+        },
+    ])
+
     return metrics
 
 
