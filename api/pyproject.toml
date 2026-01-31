@@ -53,3 +53,10 @@ pretty = true
 exclude = [
     "tests/",
 ]
+
+[tool.ruff]
+src = ["."]
+exclude = ["env", "tests"]
+line-length = 88
+select = ["E", "F", "B", "C90", "I"]
+ignore = ["E501", "B008"]
