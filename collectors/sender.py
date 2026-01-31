@@ -1,4 +1,5 @@
 from typing import List, Dict, Any
+from models import Metric
 
 import logging
 import requests
@@ -12,7 +13,7 @@ class Sender:
         self.api_url = api_url
         self.timeout = timeout
 
-    def send(self, metrics: List[Dict[str, Any]]):
+    def send(self, metrics: List[Metric]):
         """ Send metrics to analytics api
         :param metrics:
         :return:

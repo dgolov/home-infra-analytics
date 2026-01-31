@@ -10,11 +10,16 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    collector = Collector(host=settings.host)
-    sender = Sender(api_url=settings.api_url)
+    collector = Collector(
+        host=settings.host,
+        allowed_metrics=settings.allowed_metrics
+    )
+    sender = Sender(
+        api_url=settings.api_url
+    )
 
     try:
-        collector.collect_all()
+        collector.collect_all(enabled=set(settings.enabled_list))
         if not collector.metrics:
             logger.warning("No metrics collected")
             return
