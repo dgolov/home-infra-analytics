@@ -22,7 +22,7 @@ def detect_direction(slope: float, eps: float = 0.0001) -> str:
     return "flat"
 
 
-def json_serializer(obj):
+def json_serializer(obj: datetime | None) -> str:
     if isinstance(obj, datetime):
         return obj.isoformat()
     raise TypeError(f"Type {type(obj)} not serializable")
