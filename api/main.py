@@ -1,8 +1,8 @@
 from aiochclient import ChClient
 from aiohttp import ClientSession
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-from types import SimpleNamespace
+from typing import Callable, Awaitable
 
 from config import settings, setup_logging
 from core.redis import connect_to_redis
@@ -15,12 +15,13 @@ setup_logging(log_level=settings.log_level, log_file=settings.log_path)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-app.state: SimpleNamespace
+app.state.http_session = None
+app.state.ch_client = None
 app.include_router(router)
 
 
 @app.on_event("startup")
-async def startup():
+async def startup() -> None:
     app.state.http_session = ClientSession()
     app.state.ch_client = ChClient(
         app.state.http_session,
@@ -37,12 +38,15 @@ async def startup():
 
 
 @app.on_event("shutdown")
-async def shutdown():
+async def shutdown() -> None:
     await app.state.http_session.close()
 
 
 @app.middleware("http")
-async def requests_middleware(request: Request, call_next):
+async def requests_middleware(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     """ logging http requests and errors
     :param request:
     :param call_next:
