@@ -1,33 +1,29 @@
+# .pre-commit-config.yaml
 repos:
-  - repo: local
-    hooks:
-      - id: ruff-all
-        name: ruff full check
-        entry: ruff check .
-        language: system
-        always_run: true
-        types: [python]
-
+  # Ruff — статический анализ Python
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.10
     hooks:
       - id: ruff
         args: [--check, .]
-        always_run: true
+        types: [python]
+        exclude: ^(env|\.venv|tests)/
 
+  # Mypy — статическая проверка типов
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
     hooks:
       - id: mypy
         args:
           - --config-file=pyproject.toml
-        always_run: true
-        additional_dependencies: []
+        types: [python]
+        exclude: ^(env|\.venv|tests)/
 
+  # Bandit — проверка безопасности кода
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.8
     hooks:
       - id: bandit
         files: \.py$
-        exclude: ^(env|tests|\.venv)/
-        always_run: true
+        exclude: ^(env|\.venv|tests)/
+        types: [python]
