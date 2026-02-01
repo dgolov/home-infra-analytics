@@ -1,17 +1,23 @@
+import logging
 from datetime import datetime
-from fastapi import APIRouter, Depends
 from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends
 
 from core.db import BaseMetricsReadRepository, BaseMetricsWriteRepository
 from dependencies import get_read_repository, get_write_repository
 from src.helpers import detect_direction
 from src.schemas import (
-    MetricBatch, MetricsQuery, LatestMetricsQuery, MetricsTopQuery, MetricsCardinalityQuery, MetricsCompareQuery,
-    MetricsTrendQuery, MetricsBottomQuery, MetricsExtremesQuery
+    LatestMetricsQuery,
+    MetricBatch,
+    MetricsBottomQuery,
+    MetricsCardinalityQuery,
+    MetricsCompareQuery,
+    MetricsExtremesQuery,
+    MetricsQuery,
+    MetricsTopQuery,
+    MetricsTrendQuery,
 )
-
-import logging
-
 
 logger = logging.getLogger(__name__)
 

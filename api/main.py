@@ -1,15 +1,14 @@
+import logging
+from typing import Awaitable, Callable
+
 from aiochclient import ChClient
 from aiohttp import ClientSession
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-from typing import Callable, Awaitable
 
 from config import settings, setup_logging
 from core.redis import connect_to_redis
 from src.views import router
-
-import logging
-
 
 setup_logging(log_level=settings.log_level, log_file=settings.log_path)
 logger = logging.getLogger(__name__)

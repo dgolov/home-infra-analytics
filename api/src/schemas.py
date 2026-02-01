@@ -1,8 +1,8 @@
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field, RootModel, model_validator
-
 from typing import Dict, List, Optional, Self
+
+from pydantic import BaseModel, Field, RootModel, model_validator
 
 
 class Metric(BaseModel):

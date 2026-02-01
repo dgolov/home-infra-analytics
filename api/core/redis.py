@@ -1,13 +1,12 @@
-from datetime import datetime
-from typing import Any, Dict, Optional, Coroutine, TypeVar, Callable, ParamSpec
-
-from src.helpers import json_serializer
-
 import functools
-import logging
 import json
+import logging
+from datetime import datetime
+from typing import Any, Callable, Dict, Optional, ParamSpec, TypeVar
+
 import redis.asyncio as redis
 
+from src.helpers import json_serializer
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -76,54 +75,17 @@ async def set_cache(key: str, value: Dict[str, Any], ttl: int = 60) -> None:
 def make_cache_key(
         key: str,
         metric: str,
-        scope: Optional[str] = None,
-        host: Optional[str] = None,
-        vm: Optional[str] = None,
-        from_ts: Optional[str] = None,
-        to_ts: Optional[str] = None,
-        from_a: Optional[str] = None,
-        to_a: Optional[str] = None,
-        from_b: Optional[str] = None,
-        to_b: Optional[str] = None,
-        resolution: Optional[str] = None
+        **kwargs: Optional[str]
 ) -> str:
-    """ Make redis cache key
-    :param key:
-    :param metric:
-    :param scope:
-    :param host:
-    :param vm:
-    :param from_ts:
-    :param to_ts:
-    :param from_a:
-    :param to_a:
-    :param from_b:
-    :param to_b:
-    :param resolution:
-    :return:
+    """Make redis cache key from key, metric, and optional arguments.
     """
-    cache_key: str = f"{key}:{metric}"
-    if scope:
-        cache_key += f":{scope}"
-    if host:
-        cache_key += f":{host}"
-    if vm:
-        cache_key += f":{vm}"
-    if from_ts:
-        cache_key += f":{from_ts}"
-    if to_ts:
-        cache_key += f":{to_ts}"
-    if from_a:
-        cache_key += f":{from_a}"
-    if to_a:
-        cache_key += f":{to_a}"
-    if from_b:
-        cache_key += f":{from_b}"
-    if to_b:
-        cache_key += f":{to_b}"
-    if resolution:
-        cache_key += f":{resolution}"
-    return cache_key
+    parts = [key, metric]
+
+    for value in kwargs.values():
+        if value is not None:
+            parts.append(str(value))
+
+    return ":".join(parts)
 
 
 def redis_cache(key_prefix: str, ttl: int = 60) -> Callable[[Callable[P, R]], Callable[P, R]]:
