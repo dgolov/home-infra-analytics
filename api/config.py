@@ -1,4 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from logging import Handler
+from typing import List
 
 import logging
 import sys
@@ -43,7 +45,7 @@ def setup_logging(log_level: str = "DEBUG", log_file: str = "app.log") -> None:
     """
     level = getattr(logging, log_level.upper(), logging.DEBUG)
 
-    handlers = [
+    handlers: List[Handler] = [
         logging.StreamHandler(sys.stdout),
         logging.FileHandler(log_file)
     ]
@@ -56,4 +58,4 @@ def setup_logging(log_level: str = "DEBUG", log_file: str = "app.log") -> None:
     )
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]
