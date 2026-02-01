@@ -19,41 +19,65 @@ class BaseMetricsRepository:
 
 class BaseMetricsWriteRepository(ABC, BaseMetricsRepository):
     @abstractmethod
-    async def add_metric(self, data: MetricBatch):
+    async def add_metric(self, data: MetricBatch) -> None:
         ...
 
 
 class BaseMetricsReadRepository(ABC, BaseMetricsRepository):
     @abstractmethod
-    async def get_metrics(self, query: MetricsQuery):
+    async def get_metrics(
+            self,
+            query: MetricsQuery
+    ) -> List[Dict[str, str | float | datetime]]:
         ...
 
     @abstractmethod
-    async def get_latest_metrics(self, query: LatestMetricsQuery) -> Optional[Dict[str, str | float]]:
+    async def get_latest_metrics(
+            self,
+            query: LatestMetricsQuery
+    ) -> Optional[Dict[str, str | float]]:
         ...
 
     @abstractmethod
-    async def get_top_metrics(self, query: MetricsTopQuery):
+    async def get_top_metrics(
+            self,
+            query: MetricsTopQuery
+    ) -> List[Dict[str, str | float]]:
         ...
 
     @abstractmethod
-    async def get_bottom_metrics(self, query: MetricsBottomQuery):
+    async def get_bottom_metrics(
+            self,
+            query: MetricsBottomQuery
+    ) -> List[Dict[str, str | float]]:
         ...
 
     @abstractmethod
-    async def get_extreme_metrics(self, query: MetricsExtremesQuery) -> Dict[str, List[Dict[str, str | float]]]:
+    async def get_extreme_metrics(
+            self,
+            query: MetricsExtremesQuery
+    ) -> Dict[str, List[Dict[str, str | float]]]:
         ...
 
     @abstractmethod
-    async def get_cardinality_metrics(self, query: MetricsCardinalityQuery):
+    async def get_cardinality_metrics(
+            self,
+            query: MetricsCardinalityQuery
+    ) -> Dict[str, int]:
         ...
 
     @abstractmethod
-    async def get_compare_metrics(self, query: MetricsCompareQuery):
+    async def get_compare_metrics(
+            self,
+            query: MetricsCompareQuery
+    ) -> Dict[str, List[Dict[str, str | float]]]:
         ...
 
     @abstractmethod
-    async def get_trend_metrics(self, query: MetricsTrendQuery) -> Dict[str, float]:
+    async def get_trend_metrics(
+            self,
+            query: MetricsTrendQuery
+    ) -> Optional[Dict[str, float]]:
         ...
 
 
@@ -240,7 +264,7 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         return list(dict(row) for row in result)
 
     @redis_cache(key_prefix="bottom", ttl=60)
-    async def get_bottom_metrics(self, query: MetricsTopQuery) -> List[Dict[str, str | float]]:
+    async def get_bottom_metrics(self, query: MetricsBottomQuery) -> List[Dict[str, str | float]]:
         """ Get bottom metrics
         :param query:
         :return:
@@ -275,7 +299,7 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         return list(dict(row) for row in result)
 
     @redis_cache(key_prefix="extreme", ttl=60)
-    async def get_extreme_metrics(self, query: MetricsExtremesQuery) -> Dict[str, List[Dict[str, str | float]]]:
+    async def get_extreme_metrics(self, query: MetricsExtremesQuery) -> Dict[str, Any]:
         """ get extreme metrics
         :param query:
         :return:
@@ -467,7 +491,7 @@ class MetricsReadRepository(BaseMetricsReadRepository):
         :param limit:
         :return:
         """
-        grouped: dict[str, list[dict]] = defaultdict(list)
+        grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
 
         for row in rows:
             grouped[row["metric"]].append({
@@ -475,7 +499,7 @@ class MetricsReadRepository(BaseMetricsReadRepository):
                 "value": float(row["value"]),
             })
 
-        result: dict[str, list[dict]] = {}
+        result: Dict[str, List[Dict[str, Any]]] = {}
 
         for metric, items in grouped.items():
             order = self.EXTREME_RULES.get(metric, "desc")
