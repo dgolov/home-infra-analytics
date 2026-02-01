@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     log_level: str = "DEBUG"
     log_path: str = "app.log"
 
-    app_name: str = "InfraAnalyticsAPI"
+    app_name: str = "InfraAnalytics API"
     debug: bool = False
 
     clickhouse_host: str
