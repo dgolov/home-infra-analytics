@@ -1,10 +1,9 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import logging
+import sys
 from logging import Handler
 from typing import List
 
-import logging
-import sys
-
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOG_FORMAT = "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -14,7 +13,7 @@ class Settings(BaseSettings):
     log_level: str = "DEBUG"
     log_path: str = "app.log"
 
-    app_name: str = "InfraAnalytics API"
+    app_name: str = "Infra Analytics API"
     debug: bool = False
 
     clickhouse_host: str
