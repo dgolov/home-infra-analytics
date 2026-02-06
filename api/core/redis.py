@@ -1,12 +1,15 @@
-from typing import Any, Dict, Optional, Callable, Coroutine
+import functools
+import json
+import logging
+from datetime import datetime
+from typing import Any, Callable, Dict, Optional, ParamSpec, TypeVar
+
+import redis.asyncio as redis
 
 from src.helpers import json_serializer
 
-import functools
-import logging
-import json
-import redis.asyncio as redis
-
+P = ParamSpec("P")
+R = TypeVar("R")
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +27,7 @@ async def connect_to_redis(host: str, port: str | int, password: str) -> None:
     logger.debug("Try connect to Redis")
 
     try:
-        client = redis.from_url(
+        client = redis.from_url(  # type: ignore[no-untyped-call]
             url=f"redis://:{password}@{host}:{port}",
             encoding="utf-8",
             decode_responses=True
@@ -50,10 +53,10 @@ async def get_cache(key: str) -> Optional[Dict[str, Any]]:
     :return:
     """
     if not redis_client:
-        return
+        return None
     data = await redis_client.get(key)
     if data:
-        return json.loads(data)
+        return json.loads(data) # type: ignore[no-any-return]
     return None
 
 
@@ -72,65 +75,28 @@ async def set_cache(key: str, value: Dict[str, Any], ttl: int = 60) -> None:
 def make_cache_key(
         key: str,
         metric: str,
-        scope: Optional[str] = None,
-        host: Optional[str] = None,
-        vm: Optional[str] = None,
-        from_ts: Optional[str] = None,
-        to_ts: Optional[str] = None,
-        from_a: Optional[str] = None,
-        to_a: Optional[str] = None,
-        from_b: Optional[str] = None,
-        to_b: Optional[str] = None,
-        resolution: Optional[str] = None
+        **kwargs: Optional[str]
 ) -> str:
-    """ Make redis cache key
-    :param key:
-    :param metric:
-    :param scope:
-    :param host:
-    :param vm:
-    :param from_ts:
-    :param to_ts:
-    :param from_a:
-    :param to_a:
-    :param from_b:
-    :param to_b:
-    :param resolution:
-    :return:
+    """Make redis cache key from key, metric, and optional arguments.
     """
-    cache_key: str = f"{key}:{metric}"
-    if scope:
-        cache_key += f":{scope}"
-    if host:
-        cache_key += f":{host}"
-    if vm:
-        cache_key += f":{vm}"
-    if from_ts:
-        cache_key += f":{from_ts}"
-    if to_ts:
-        cache_key += f":{to_ts}"
-    if from_a:
-        cache_key += f":{from_a}"
-    if to_a:
-        cache_key += f":{to_a}"
-    if from_b:
-        cache_key += f":{from_b}"
-    if to_b:
-        cache_key += f":{to_b}"
-    if resolution:
-        cache_key += f":{resolution}"
-    return cache_key
+    parts = [key, metric]
+
+    for value in kwargs.values():
+        if value is not None:
+            parts.append(str(value))
+
+    return ":".join(parts)
 
 
-def redis_cache(key_prefix: str, ttl: int = 60):
+def redis_cache(key_prefix: str, ttl: int = 60) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """ Cache decorator
     :param key_prefix:
     :param ttl:
     :return:
     """
-    def decorator(func: Callable[..., Coroutine[Any, Any, Any]]):
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
-        async def wrapper(self, *args, **kwargs) -> Dict[str, Any]:
+        async def wrapper(self: Any, *args: P.args, **kwargs: P.kwargs) -> Dict[str, Any]:
             query: Any = kwargs.get("query") or (args[0] if args else None)
             if query is None:
                 raise ValueError("Decorator expects a 'query' argument")
@@ -140,14 +106,14 @@ def redis_cache(key_prefix: str, ttl: int = 60):
             if redis_client:
                 cache_key = make_cache_key(
                     key=key_prefix,
-                    metric=getattr(query, "metric", None),
+                    metric=getattr(query, "metric", "unknown"),
                     scope=getattr(query, "scope", None),
                     host=getattr(query, "host", None),
                     vm=getattr(query, "vm", None),
-                    from_ts=getattr(query, "from_ts", None).isoformat() if getattr(query, "from_ts", None) else "",
-                    to_ts=getattr(query, "to_ts", None).isoformat() if getattr(query, "to_ts", None) else "",
-                    from_a=getattr(query, "from_a", None).isoformat() if getattr(query, "from_a", None) else "",
-                    to_a=getattr(query, "to_a", None).isoformat() if getattr(query, "to_a", None) else "",
+                    from_ts=iso(getattr(query, "from_ts", None)),
+                    to_ts=iso(getattr(query, "to_ts", None)),
+                    from_a=iso(getattr(query, "from_a", None)),
+                    to_a=iso(getattr(query, "to_a", None)),
                     resolution=getattr(query, "resolution", None)
                 )
 
@@ -155,7 +121,7 @@ def redis_cache(key_prefix: str, ttl: int = 60):
                 if cached:
                     return cached
 
-            result: Dict[str, Any] = await func(self, *args, **kwargs)
+            result: Dict[str, Any] = await func(self, *args, **kwargs)  # type: ignore
 
             if cache_key:
                 if result is not None:
@@ -163,5 +129,9 @@ def redis_cache(key_prefix: str, ttl: int = 60):
 
             return result
 
-        return wrapper
+        return wrapper  # type: ignore
     return decorator
+
+
+def iso(dt: Optional[datetime]) -> str:
+    return dt.isoformat() if dt else ""
