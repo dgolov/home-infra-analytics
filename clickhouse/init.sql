@@ -87,10 +87,19 @@ CREATE TABLE infra.metrics_5m_local ON CLUSTER infra_cluster (
     sum_value AggregateFunction(sum, Float64),
     cnt_value AggregateFunction(count)
 )
-ENGINE = AggregatingMergeTree
+ENGINE = AggregatingMergeTree()
 PARTITION BY date
 ORDER BY (metric, host, vm, bucket)
 TTL bucket + INTERVAL 14 DAY;
+
+CREATE TABLE infra.metrics_5m ON CLUSTER infra_cluster
+AS infra.metrics_5m_local
+ENGINE = Distributed(
+    infra_cluster,
+    infra,
+    metrics_5m_local,
+    cityHash64(vm)
+);
 
 CREATE MATERIALIZED VIEW infra.mv_metrics_5m_local
     ON CLUSTER infra_cluster
@@ -129,10 +138,20 @@ CREATE TABLE infra.metrics_1h_local ON CLUSTER infra_cluster (
     sum_value AggregateFunction(sum, Float64),
     cnt_value AggregateFunction(count)
 )
-ENGINE = AggregatingMergeTree
+ENGINE = AggregatingMergeTree()
 PARTITION BY date
 ORDER BY (metric, host, vm, bucket)
 TTL bucket + INTERVAL 14 DAY;
+
+
+CREATE TABLE infra.metrics_1h ON CLUSTER infra_cluster
+AS infra.metrics_1h_local
+ENGINE = Distributed(
+    infra_cluster,
+    infra,
+    metrics_1h_local,
+    cityHash64(vm)
+);
 
 CREATE MATERIALIZED VIEW infra.mv_metrics_1h_local
     ON CLUSTER infra_cluster
