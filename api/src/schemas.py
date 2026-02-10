@@ -1,8 +1,8 @@
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field, RootModel, model_validator
+from typing import Dict, List, Optional, Self
 
-from typing import Dict, List, Optional
+from pydantic import BaseModel, Field, RootModel, model_validator
 
 
 class Metric(BaseModel):
@@ -18,21 +18,21 @@ class MetricBatch(RootModel[List[Metric]]):
 
 
 class Scope(str, Enum):
-    vm: str = "vm"
-    host: str = "host"
-    global_: str = "global"
+    vm = "vm"
+    host = "host"
+    global_ = "global"
 
 
 class CardinalityScope(str, Enum):
-    vm: str = "vm"
-    host: str = "host"
-    metric: str = "metric"
+    vm = "vm"
+    host = "host"
+    metric = "metric"
 
 
 class Resolution(str, Enum):
-    m1: str = "1m"
-    m5: str = "5m"
-    h1: str = "1h"
+    m1 = "1m"
+    m5 = "5m"
+    h1 = "1h"
 
 
 class MetricsQuery(BaseModel):
@@ -99,7 +99,7 @@ class MetricsTrendQuery(BaseModel):
     vm: Optional[str] = Field(default=None)
 
     @model_validator(mode="after")
-    def validate_scope(self):
+    def validate_scope(self) -> Self:
         if self.scope == Scope.host and not self.host:
             raise ValueError("host is required when scope=host")
 
